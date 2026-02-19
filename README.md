@@ -57,7 +57,7 @@ This repository contains the `kanata.kbd` configuration file.
 Clone it to a location that is safe for editing (for example, inside `~/projects`):
 
 ```sh
-git clone <REPO_URL> ~/projects/kanata
+git clone https://github.com/thecodecafe/kanata.git ~/projects/kanata
 ```
 
 ---
