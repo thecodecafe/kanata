@@ -37,12 +37,10 @@ This Kanata config provides:
 
   * Hold **Escape** and press:
 
-    * `h` → ←
-    * `j` → ↓
-    * `k` → ↑
-    * `l` → →
-
-* No function-key remapping
+    * `h` for ←
+    * `j` for ↓
+    * `k` for ↑
+    * `l` for →
 
 * All other keys behave normally
 
@@ -71,6 +69,7 @@ Instead, I keep the repository in `~/projects/kanata` and create a symbolic link
 ```sh
 ln -s ~/projects/kanata ~/.config/kanata
 ```
+> 📝 If you used a different directory to clone this repo then change ~/projects/kanata above to the place you cloned this repo
 
 This ensures:
 
