@@ -37,10 +37,31 @@ This Kanata config provides:
 
   * Hold **Escape** and press:
 
-    * `h` for ←
-    * `j` for ↓
-    * `k` for ↑
-    * `l` for →
+    * `h` for ←
+    * `j` for ↓
+    * `k` for ↑
+    * `l` for →
+
+* **Mouse layer**
+
+  * Hold **Space** to enter the mouse layer
+  * While holding Space:
+
+    * `h` → move mouse left
+    * `j` → move mouse down
+    * `k` → move mouse up
+    * `l` → move mouse right
+  * While in the mouse layer:
+
+    * Tap `f` → left mouse click
+    * Tap `d` → right mouse click
+
+*
+
+* **Function keys remapped to macOS media & system controls**
+
+  * `F1–F12` provide brightness, media, volume, and other standard macOS system controls
+  * The original function keys are still available via layer logic defined in the config
 
 * All other keys behave normally
 
@@ -52,24 +73,29 @@ This Kanata config provides:
 
 This repository contains the `kanata.kbd` configuration file.
 
-Clone it to a location that is safe for editing (for example, inside `~/projects`):
+Clone it to **any directory you prefer**. The project location is **not fixed** and is determined entirely by the person cloning it.
+
+For example:
 
 ```sh
-git clone https://github.com/thecodecafe/kanata.git ~/projects/kanata
+git clone <REPO_URL> <YOUR_KANATA_DIRECTORY>
+# Eample
+git clone <REPO_URL> ~/projects/kanata
 ```
 
 ---
 
 ### 2. Create a symbolic link to Kanata’s config directory (IMPORTANT)
 
-I **do not edit Kanata config files directly inside `~/.config/kanata`**.
+I **do not edit Kanata config files directly inside ********************************`~/.config/kanata`**.
 
-Instead, I keep the repository in `~/projects/kanata` and create a symbolic link:
+Instead, I keep the repository in a directory of my choosing (for example `<KANATA_REPO_DIR>`) and create a symbolic link:
 
 ```sh
+ln -s <KANATA_REPO_DIR> ~/.config/kanata
+# Example
 ln -s ~/projects/kanata ~/.config/kanata
 ```
-> 📝 If you used a different directory to clone this repo then change ~/projects/kanata above to the place you cloned this repo
 
 This ensures:
 
@@ -221,26 +247,20 @@ Kanata will now start automatically on boot.
 
 I do **not** edit my Kanata config directly in `~/.config/kanata`.
 
-Instead, the repository lives in:
-
-```text
-~/projects/kanata
-```
-
-And I create a **symbolic link**:
+Instead, the repository lives in a directory chosen by the user (for example `<KANATA_REPO_DIR>`), and I create a **symbolic link**:
 
 ```sh
-ln -s ~/projects/kanata ~/.config/kanata
+ln -s <KANATA_REPO_DIR> ~/.config/kanata
 ```
 
 ### Why this matters
 
-* My code editor only works inside `~/projects`
-* My home directory is not opened or indexed by editors
-* This avoids accidental edits, permission issues, or tooling conflicts
-* The Kanata config remains version-controlled and safe
+* Your editor works inside a normal project directory
+* The repo location is flexible and not hard‑coded
+* The config remains version‑controlled and safe
+* `~/.config/kanata` stays clean and minimal
 
-**This approach is strongly recommended.**
+**This approach is strongly recommended.****
 
 ---
 
@@ -275,3 +295,82 @@ If something breaks after a macOS update, check:
 ---
 
 Happy hacking. ⌨️
+
+## Kanata Control Scripts
+
+This repository includes a unified control script for managing Kanata as a **system LaunchDaemon** on macOS.
+
+### Script: `kanata.sh`
+
+The script is designed to be safe to run both **with and without `sudo`** and handles macOS-specific edge cases around user permissions.
+
+Supported subcommands:
+
+```bash
+./kanata.sh start    # Start Kanata if not running
+./kanata.sh stop     # Stop Kanata if running
+./kanata.sh restart  # Validate config, then restart Kanata
+./kanata.sh status   # Show current Kanata status
+```
+
+---
+
+### Logging (user-scoped)
+
+Logs are written to a **user-scoped location**, not `/var/log`, to avoid permission issues:
+
+```
+~/.local/state/kanata/kanata.log
+```
+
+Important details:
+
+* The script resolves the *original invoking user* even when running under `sudo`
+* Logs are always written to the **real user’s home directory**, never `/var/root`
+* This allows:
+
+  * Running the script via `make`
+  * Running the script manually
+  * Inspecting logs without root access
+
+If you previously ran the script as root and encounter a permission error, fix ownership once with:
+
+```bash
+sudo chown -R "$USER":staff ~/.local
+```
+
+---
+
+### Config Validation
+
+Before restarting Kanata, the script validates the configuration using:
+
+```bash
+kanata -c ~/.config/kanata/kanata.kbd --check
+```
+
+If validation fails, Kanata will **not** be restarted.
+
+---
+
+### Makefile Integration
+
+Convenience targets are provided:
+
+```bash
+make kstart
+make kstop
+make krestart
+make kstatus
+```
+
+These targets simply delegate to `kanata.sh`.
+
+---
+
+### Notes
+
+* Kanata runs as **root** via a system LaunchDaemon
+* The control script automatically re-execs with `sudo` when required
+* Logs remain user-readable and user-owned
+* Do **not** remap keys in Karabiner while using Kanata — it will interfere with behavior
