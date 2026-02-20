@@ -1,78 +1,106 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+KANATA_BIN="/opt/homebrew/bin/kanata"
+KANATA_CONFIG="$HOME/.config/kanata/kanata.kbd"
 PLIST="/Library/LaunchDaemons/kanata.plist"
-LABEL="kanata"
-LOG_TAG="[kanatactl]"
+
+# Resolve the *real* user home, even under sudo
+if [[ -n "${SUDO_USER:-}" ]]; then
+  USER_HOME=$(dscl . -read /Users/"$SUDO_USER" NFSHomeDirectory | awk '{print $2}')
+else
+  USER_HOME="$HOME"
+fi
+
+LOG_DIR="$USER_HOME/.local/state/kanata"
+LOG_FILE="$LOG_DIR/kanata.log"
+
+mkdir -p "$LOG_DIR"
+
+timestamp() {
+  date "+%Y-%m-%d %H:%M:%S"
+}
 
 log() {
-  echo "$(date '+%Y-%m-%d %H:%M:%S') $LOG_TAG $*"
+  echo "[$(timestamp)] $1" | tee -a "$LOG_FILE"
 }
 
 require_root() {
   if [[ $EUID -ne 0 ]]; then
-    log "Re-running with sudo"
     exec sudo "$0" "$@"
   fi
 }
 
 is_running() {
-  launchctl list | grep -q "$LABEL"
+  pgrep -f "$KANATA_BIN.*$KANATA_CONFIG" >/dev/null 2>&1
 }
 
-start() {
+validate_config() {
+  log "Validating Kanata configuration"
+  if ! "$KANATA_BIN" -c "$KANATA_CONFIG" --check >/dev/null 2>&1; then
+    log "ERROR: Kanata configuration validation failed"
+    exit 1
+  fi
+  log "Configuration OK"
+}
+
+start_kanata() {
+  require_root "$@"
+
   if is_running; then
     log "Kanata already running"
-    return 0
+    exit 0
   fi
-  log "Starting Kanata"
-  launchctl bootstrap system "$PLIST"
-  log "Kanata started"
+
+  validate_config
+  log "Starting Kanata via launchd"
+  launchctl bootstrap system "$PLIST" || true
 }
 
-stop() {
-  log "Stopping Kanata (if running)"
-  launchctl bootout system "$PLIST" 2>/dev/null || true
-  log "Kanata stopped"
+stop_kanata() {
+  require_root "$@"
+
+  if ! is_running; then
+    log "Kanata is not running"
+    exit 0
+  fi
+
+  log "Stopping Kanata"
+  launchctl bootout system "$PLIST" || true
 }
 
-restart() {
+restart_kanata() {
+  require_root "$@"
+
+  validate_config
   log "Restarting Kanata"
-  stop
-  start
+  launchctl bootout system "$PLIST" || true
+  launchctl bootstrap system "$PLIST"
 }
 
-status() {
+status_kanata() {
   if is_running; then
     log "Kanata is running"
-    launchctl list | grep "$LABEL"
   else
     log "Kanata is NOT running"
   fi
 }
 
-usage() {
-  cat <<EOF
-Usage: kanata.sh <command>
-
-Commands:
-  start     Start Kanata if not running
-  stop      Stop Kanata if running
-  restart   Restart Kanata
-  status    Show Kanata status
-EOF
-}
-
-main() {
-  require_root "$@"
-
-  case "${1:-}" in
-    start) start ;;
-    stop) stop ;;
-    restart) restart ;;
-    status) status ;;
-    *) usage; exit 1 ;;
-  esac
-}
-
-main "$@"
+case "${1:-}" in
+  start)
+    start_kanata "$@"
+    ;;
+  stop)
+    stop_kanata "$@"
+    ;;
+  restart)
+    restart_kanata "$@"
+    ;;
+  status)
+    status_kanata
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart|status}"
+    exit 1
+    ;;
+esac
