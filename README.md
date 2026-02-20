@@ -87,7 +87,7 @@ git clone <REPO_URL> ~/projects/kanata
 
 ### 2. Create a symbolic link to Kanata’s config directory (IMPORTANT)
 
-I do not edit Kanata config files directly inside **`~/.config/kanata`**.
+I **do not edit Kanata config files directly inside ********************************`~/.config/kanata`**.
 
 Instead, I keep the repository in a directory of my choosing (for example `<KANATA_REPO_DIR>`) and create a symbolic link:
 
@@ -302,6 +302,8 @@ This repository includes a unified control script for managing Kanata as a **sys
 
 ### Script: `kanata.sh`
 
+The script is designed to be safe to run both **with and without `sudo`** and handles macOS-specific edge cases around user permissions.
+
 Supported subcommands:
 
 ```bash
@@ -311,30 +313,45 @@ Supported subcommands:
 ./kanata.sh status   # Show current Kanata status
 ```
 
-### Logging & Journaling
+---
 
-* All actions are logged with timestamps (systemd-style)
-* Logs are written to:
+### Logging (user-scoped)
+
+Logs are written to a **user-scoped location**, not `/var/log`, to avoid permission issues:
 
 ```
-/var/log/kanata.log
+~/.local/state/kanata/kanata.log
 ```
 
-You can inspect logs with:
+Important details:
+
+* The script resolves the *original invoking user* even when running under `sudo`
+* Logs are always written to the **real user’s home directory**, never `/var/root`
+* This allows:
+
+  * Running the script via `make`
+  * Running the script manually
+  * Inspecting logs without root access
+
+If you previously ran the script as root and encounter a permission error, fix ownership once with:
 
 ```bash
-tail -f /var/log/kanata.log
+sudo chown -R "$USER":staff ~/.local
 ```
+
+---
 
 ### Config Validation
 
-Before restarting, the script validates the configuration using:
+Before restarting Kanata, the script validates the configuration using:
 
 ```bash
 kanata -c ~/.config/kanata/kanata.kbd --check
 ```
 
 If validation fails, Kanata will **not** be restarted.
+
+---
 
 ### Makefile Integration
 
@@ -347,10 +364,13 @@ make krestart
 make kstatus
 ```
 
-These simply delegate to `kanata.sh`.
+These targets simply delegate to `kanata.sh`.
+
+---
 
 ### Notes
 
 * Kanata runs as **root** via a system LaunchDaemon
-* Commands will automatically re-run with `sudo` if required
+* The control script automatically re-execs with `sudo` when required
+* Logs remain user-readable and user-owned
 * Do **not** remap keys in Karabiner while using Kanata — it will interfere with behavior
